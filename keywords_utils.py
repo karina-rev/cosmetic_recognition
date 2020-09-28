@@ -64,9 +64,10 @@ def get_keywords(img):
     images = [image_0, image_1, image_2, image_3]
 
     keywords = []
-    with multiprocessing.Pool() as p:
-        for result in p.imap(image_to_text, images):
-            keywords += result
+    if __name__ == '__main__':
+        with multiprocessing.Pool() as p:
+            for result in p.imap(image_to_text, images):
+                keywords += result
 
     keywords = [k.translate(str.maketrans('', '', punctuation)) for k in keywords]
     keywords = set([k.lower() for k in keywords if len(k) > 2])
