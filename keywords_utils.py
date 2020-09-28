@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import tempfile
 import pytesseract
+import multiprocessing
 from PIL import Image
 
 punctuation = string.punctuation + '“—'
@@ -33,36 +34,40 @@ def set_image_dpi(im):
     return temp_filename
 
 
-def get_keywords(image):
+def image_to_text(img):
+    custom_config = r'--oem 3 --psm 3 -l fra+eng+rus+ita'
+    return pytesseract.image_to_string(img, config=custom_config).split()
+
+
+def get_keywords(img):
     """
     Обработка изображения и поиск слов с помощью pytesseract
     :param image: изображение для поиска слов
     :return: множество set найденных слов
     """
-    custom_config = r'--oem 3 --psm 3 -l fra+eng+rus+ita'
-    image_bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    image_0 = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
-    keywords = pytesseract.image_to_string(image_bgr, config=custom_config).split()
+    image_1 = cv2.cvtColor(image_0, cv2.COLOR_BGR2GRAY)
+    image_1 = cv2.medianBlur(image_1, 3)
+    image_1 = cv2.Canny(image_1, 100, 200)
 
-    clear_img = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-    clear_img = cv2.medianBlur(clear_img, 3)
-    clear_img = cv2.Canny(clear_img, 100, 200)
+    image_2 = deskew(image_1)
 
-    keywords = keywords + pytesseract.image_to_string(clear_img, config=custom_config).split()
-
-    clear_img = deskew(clear_img)
-
-    keywords = keywords + pytesseract.image_to_string(clear_img, config=custom_config).split()
-
-    clear_img = Image.open(set_image_dpi(image))
-    clear_img = cv2.cvtColor(np.array(clear_img), cv2.COLOR_RGB2GRAY)
+    image_3 = Image.open(set_image_dpi(img))
+    image_3 = cv2.cvtColor(np.array(image_3), cv2.COLOR_RGB2GRAY)
     kernel = np.ones((1, 1), np.uint8)
-    clear_img = cv2.dilate(clear_img, kernel, iterations=1)
-    clear_img = cv2.erode(clear_img, kernel, iterations=1)
-    cv2.adaptiveThreshold(cv2.bilateralFilter(clear_img, 9, 75, 75), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                          cv2.THRESH_BINARY, 31, 2)
+    image_3 = cv2.dilate(image_3, kernel, iterations=1)
+    image_3 = cv2.erode(image_3, kernel, iterations=1)
+    cv2.adaptiveThreshold(cv2.bilateralFilter(image_3, 9, 75, 75), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                              cv2.THRESH_BINARY, 31, 2)
 
-    keywords = keywords + pytesseract.image_to_string(clear_img, config=custom_config).split()
+    images = [image_0, image_1, image_2, image_3]
+
+    keywords = []
+    with multiprocessing.Pool() as p:
+        for result in p.imap(image_to_text, images):
+            keywords += result
+
     keywords = [k.translate(str.maketrans('', '', punctuation)) for k in keywords]
     keywords = set([k.lower() for k in keywords if len(k) > 2])
     return keywords
