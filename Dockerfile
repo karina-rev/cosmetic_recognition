@@ -7,6 +7,8 @@ WORKDIR /
 # copy all the files to the container
 COPY . .
 
+ENV OMP_THREAD_LIMIT=1
+
 # install dependencies
 RUN apt-get update ##[edited]
 RUN apt-get install 'ffmpeg'\

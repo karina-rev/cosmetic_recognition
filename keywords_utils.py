@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import tempfile
 import pytesseract
+import multiprocessing
 from PIL import Image
 
 punctuation = string.punctuation + '“—'
@@ -63,8 +64,9 @@ def get_keywords(img):
     images = [image_0, image_1, image_2, image_3]
 
     keywords = []
-    for image in images:
-        keywords += image_to_text(image)
+    with multiprocessing.Pool() as p:
+        for result in p.imap_unordered(image_to_text, images):
+            keywords += result
 
     keywords = [k.translate(str.maketrans('', '', punctuation)) for k in keywords]
     keywords = set([k.lower() for k in keywords if len(k) > 2])

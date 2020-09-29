@@ -14,22 +14,22 @@ ap.add_argument("-c", "--cbir", action='store_true', help="load/reload CBIR mode
 ap.add_argument("-k", "--keywords", action='store_true', help="load/reload products keywords dataset")
 args = vars(ap.parse_args())
 
+if __name__ == '__main__':
+    # загрузка CBIR модели
+    if not args['keywords'] and not args['cbir']:
+        try:
+            cbir = pickle.load(open(config.PATH_TO_CBIR_MODEL, 'rb'))
+        except FileNotFoundError:
+            train_model.train_cbir_model()
+            cbir = pickle.load(open(config.PATH_TO_CBIR_MODEL, 'rb'))
 
-# загрузка CBIR модели
-if not args['keywords'] and not args['cbir']:
-    try:
-        cbir = pickle.load(open(config.PATH_TO_CBIR_MODEL, 'rb'))
-    except FileNotFoundError:
-        train_model.train_cbir_model()
-        cbir = pickle.load(open(config.PATH_TO_CBIR_MODEL, 'rb'))
-
-# загрузка датасета products с найденными словами
-if not args['keywords'] and not args['cbir']:
-    try:
-        products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
-    except FileNotFoundError:
-        train_model.generate_products_keywords()
-        products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
+    # загрузка датасета products с найденными словами
+    if not args['keywords'] and not args['cbir']:
+        try:
+            products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
+        except FileNotFoundError:
+            train_model.generate_products_keywords()
+            products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
 
 
 def add_new_products():
@@ -107,11 +107,12 @@ def perform_search(image):
     return sorted(overall_weighted.items(), key=lambda item: item[1], reverse=True)[0][0]
 
 
-if args['cbir']:
-    train_model.train_cbir_model()
-    cbir = pickle.load(open(config.PATH_TO_CBIR_MODEL, 'rb'))
-if args['keywords']:
-    train_model.generate_products_keywords()
-    products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
-if args['image']:
-    print(perform_search(args['image']))
+if __name__ == '__main__':
+    if args['cbir']:
+        train_model.train_cbir_model()
+        cbir = pickle.load(open(config.PATH_TO_CBIR_MODEL, 'rb'))
+    if args['keywords']:
+        train_model.generate_products_keywords()
+        products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
+    if args['image']:
+        print(perform_search(args['image']))
