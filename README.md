@@ -12,14 +12,14 @@
 <b>app/utils.py</b> - вспомогательные функции <br>
 
 <h5>Директории: </h5> 
-(находятся в zip-архивах в релизе https://github.com/karina-rev/cosmetic_recognition/releases/tag/1.0) <br>
+(находятся в zip-архивах в <a href='https://github.com/karina-rev/cosmetic_recognition/releases/tag/1.0'>релизе</a>) <br>
 <b>output</b> - обученные модели. <br>
  -- <b>faiss.index</b> - индекс faiss  <br>
  -- <b>products.pkl</b> - датафрейм, распарсенный из данных из xml со словами, которые удалось найти на каждом изображении  <br>
 
-<br><br>
+<br>
 <h5>Докер</h5>
-<code>docker-compose build</code> <br>
+<code>docker-compose build</code> 
 Создается 3 образа: <br><br>
 1) ubuntu:18.04 <br>
 2) openvino-dev:2020.4.287 <br>
