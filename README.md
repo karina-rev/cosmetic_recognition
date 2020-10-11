@@ -19,12 +19,12 @@
 
 <br>
 <h5>Докер</h5>
-<code>docker-compose build</code> 
+<code>docker-compose build</code> <br>
 Создается 3 образа: <br><br>
 1) ubuntu:18.04 <br>
 2) openvino-dev:2020.4.287 <br>
 3) goldapple <br><br>
-Запуск скрипта с помощью докера: <br>
+<h5>Запуск скрипта с помощью докера: </h5>
 <code>IMAGE=IMAGE_URL docker-compose run goldapple</code>
 <br><br>
 <a href='https://github.com/karina-rev/cosmetic_recognition/releases/download/1.0/test.txt'>Несколько примеров ссылок с изображениями, которые правильно классифицируются</a>
