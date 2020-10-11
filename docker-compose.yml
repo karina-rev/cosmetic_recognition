@@ -1,0 +1,28 @@
+version: '3.4'
+services:
+  openvino-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openvino-dev:2020.4.287
+    stdin_open: true
+    tty: true
+    command: bash
+
+  goldapple:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      target: goldapple
+    image: goldapple
+    stdin_open: true
+    tty: true
+    command: bash /app/search.sh
+    volumes:
+      - $HOME/.Xauthority:/root/.Xauthority
+    network_mode: host
+    environment:
+      - DISPLAY
+      - IMAGE
+      - FAISS
+      - KEYWORDS

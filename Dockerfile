@@ -1,42 +1,26 @@
-FROM python:3
+FROM ubuntu:18.04
 
-# set a directory for the app
+ARG PACKAGE=intel-openvino-dev-ubuntu18-2020.4.287
 
-WORKDIR /
+RUN apt-get update && apt-get -y upgrade
+RUN apt-get install -y --no-install-recommends \
+  ca-certificates \
+  gnupg \
+  wget
 
-# copy all the files to the container
-COPY . .
+RUN wget https://apt.repos.intel.com/openvino/2020/GPG-PUB-KEY-INTEL-OPENVINO-2020 && \
+  apt-key add GPG-PUB-KEY-INTEL-OPENVINO-2020
 
-ENV OMP_THREAD_LIMIT=1
+RUN echo deb "https://apt.repos.intel.com/openvino/2020 all main" > /etc/apt/sources.list.d/intel-openvino-2020.list
 
-# install dependencies
-RUN apt-get update ##[edited]
-RUN apt-get install 'ffmpeg'\
-    'libsm6'\ 
-    'libpq-dev' \
-    'libleptonica-dev'\
-    'tesseract-ocr' \
-    'tesseract-ocr-fra' \
-    'tesseract-ocr-rus' \
-    'tesseract-ocr-ita'\
-    'libtesseract-dev' \
-    'libxext6'  -y 
-RUN pip install -r requirements.txt
-RUN pip install tesseract
-RUN pip install tesseract-ocr
-RUN chmod +x  search.py
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends \
+    $PACKAGE && \
+  apt autoremove -y && \
+  rm -rf /var/lib/apt/lists/*
 
-RUN curl -OL 'https://github.com/karina-rev/cosmetic_recognition/releases/download/1.0/output.zip' \
-&& unzip output.zip \
-&& rm output.zip
+RUN /bin/bash -c "source /opt/intel/openvino/bin/setupvars.sh"
 
-RUN curl -OL 'https://github.com/karina-rev/cosmetic_recognition/releases/download/1.0/products.zip' \
-&& unzip products.zip \
-&& rm products.zip
+RUN echo "source /opt/intel/openvino/bin/setupvars.sh" >> /root/.bashrc
 
-RUN curl -OL 'https://github.com/karina-rev/cosmetic_recognition/releases/download/1.0/test.zip' \
-&& unzip test.zip \
-&& rm test.zip
-
-# run the command
-ENTRYPOINT ["python3", "search.py"]
+CMD ["/bin/bash"]
