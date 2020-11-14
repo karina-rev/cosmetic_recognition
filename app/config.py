@@ -6,4 +6,7 @@ PATH_TO_TEXT_ENC_MODEL = '/app/models/intel/text-spotting-0002/text-spotting-000
                          '/FP32/text-spotting-0002-recognizer-encoder.xml'
 PATH_TO_TEXT_DEC_MODEL = '/app/models/intel/text-spotting-0002/text-spotting-0002-recognizer-decoder' \
                          '/FP32/text-spotting-0002-recognizer-decoder.xml'
+PATH_TO_LOG_FILE = '/app/logs/cosmetic_recognition.log'
+PATH_TO_PRODUCT_FOLDER = '/app/products/'
+
 URL_TO_XML_FILE = 'https://cdn.goldapple.ru/media/feed/charm.xml'

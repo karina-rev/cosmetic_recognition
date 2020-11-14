@@ -1,28 +1,12 @@
-version: '3.4'
+version: '3.8'
 services:
-  openvino-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: openvino-dev:2020.4.287
-    stdin_open: true
-    tty: true
-    command: bash
-
-  goldapple:
-    build:
-      context: ./app
-      dockerfile: Dockerfile
-      target: goldapple
-    image: goldapple
-    stdin_open: true
-    tty: true
-    command: bash /app/search.sh
+  cosmetic_recognition:
+    build: ./app
+    image: cosmetic_recognition
+    container_name: cosmetic_recognition
     volumes:
-      - $HOME/.Xauthority:/root/.Xauthority
-    network_mode: host
-    environment:
-      - DISPLAY
-      - IMAGE
-      - FAISS
-      - KEYWORDS
+      - ./products:/app/products
+    command: /bin/bash -c "source /opt/intel/openvino/bin/setupvars.sh; python3 main.py"
+    restart: on-failure
+    ports:
+      - "8080:8080"

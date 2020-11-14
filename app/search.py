@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+##!/bin/bash
 import pandas as pd
 import faiss
 import argparse
@@ -8,48 +8,31 @@ import train_model
 import config
 import os
 import torch
-import text_spotting
-import pickle5 as pickle
+import time
+import logging
+from text_spotting import TextSpotting
 from io import BytesIO
 from PIL import Image
 
-
-ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--image", type=str, help="path to image to recognize")
-ap.add_argument("-f", "--faiss", action='store_true', help="load/reload and train faiss index")
-ap.add_argument("-k", "--keywords", action='store_true', help="load/reload products dataset and train keywords")
-args = vars(ap.parse_args())
-
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+logging.basicConfig(filename=config.PATH_TO_LOG_FILE,
+                    format='%(asctime)s [%(levelname)s] - %(message)s',
+                    level=logging.INFO)
 
 
-def main(image_url):
+def perform_search(image_bytes):
     """
-    Поиск url продукта
-    :param image_url: url изобрадения для поиска
-    :return: url продукта
+    Поиск продукта в базе по изображению
+    :param image_bytes: изображение для поиска в байтах
+    :return: словарь с данными найденного продукта
     """
-    if not os.path.exists(config.PATH_TO_PRODUCT_DATASET):
-        train_model.make_products_dataframe()
-        train_model.train_products_keywords()
-
-    if not os.path.exists(config.PATH_TO_FAISS_INDEX):
-        train_model.train_faiss_index()
-
-    with open(config.PATH_TO_PRODUCT_DATASET, 'rb') as f:
-        products = pickle.load(f)
+    products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
+    image = Image.open(BytesIO(image_bytes)).convert('RGB')
+    start = time.time()
 
     # ---Поиск с помощью OCR---
     # Получаем слова на изображении и находим количество пересечений со словами каждого продукта из базы
-    try:
-        http = requests.Session()
-        http.mount("https://", utils.adapter)
-        response = http.get(image_url)
-    except requests.exceptions.ConnectionError:
-        print('Connection Error')
-        return
-
-    image = Image.open(BytesIO(response.content)).convert('RGB')
+    text_spotting = TextSpotting().train_network()
     ocr_keywords = text_spotting.search_text(image)
     products['ocr_weight'] = [len(set(ocr_keywords) & set(p)) for p in products['keywords']]
 
@@ -75,11 +58,29 @@ def main(image_url):
 
     # Считаем среднее для продуктов, которые не были найдены с помощью CBIR,
     # но у которых большой процент пересечения слов OCR
-    products.loc[(products['faiss_weight'] == 0.0) & (products['ocr_weight'] >= 0.001), 'result_weight'] = \
-        (1.0 + products['ocr_weight']) / 2
-
+    products.loc[(products['faiss_weight'] == 0.0) &
+                 (products['ocr_weight'] >= products[products['ocr_weight'] > 0]['ocr_weight'].mean()),
+                 'result_weight'] = (products[products['faiss_weight'] > 0]['faiss_weight'].mean() +
+                                     products['ocr_weight']) / 2
     # Возвращаем url продукта, у которого получился самый большой вес
-    return products.sort_values(by='result_weight', ascending=False).iloc[0]['url']
+    result_product = products.sort_values(by='result_weight', ascending=False).iloc[0]
+
+    end = time.time()
+    logging.info(f'Время поиска продукта: {end - start}')
+
+    return {
+        'url': result_product['url'],
+        'price': result_product['price'],
+        'oldprice': result_product['oldprice'],
+        'currencyId': result_product['currencyId'],
+        'categoryId': result_product['categoryId'],
+        'picture': result_product['picture'],
+        'typePrefix': result_product['typePrefix'],
+        'model': result_product['model'],
+        'vendor': result_product['vendor'],
+        'barcode': result_product['barcode'],
+        'description': result_product['description']
+    }
 
 
 def search_img_in_faiss(img, n_similar=25):
@@ -98,11 +99,3 @@ def search_img_in_faiss(img, n_similar=25):
         query_descriptors = utils.pooling_output(input_tensor.to(DEVICE)).cpu().numpy()
         distance, indices = index.search(query_descriptors.reshape(1, 2048), n_similar)
     return distance, indices
-
-
-if args['faiss']:
-    train_model.train_faiss_index()
-if args['keywords']:
-    train_model.train_products_keywords()
-if args['image']:
-    print(main(args['image']))
