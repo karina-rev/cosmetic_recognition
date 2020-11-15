@@ -24,7 +24,7 @@
 <br>
 <h3>Докер</h3>
 <h4>В директории app:</h4> <br>
-<code>docker-compose up -d </code> <br><br>
+<code>docker-compose up -d </code> <br>
 Создается образ cosmetic_recognition. Запускается сервер в контейнере cosmetic_recognition, сеть cosmetic_recognition_default, порт 8080. Для получения результата необходимо отправить POST-запрос с байтами изображения на cosmetic_recognition:8080/image. <br>
 Также, на сервере хранится лог /logs/cosmetic_recognition.log
 <br><br>
@@ -34,9 +34,9 @@
 <code>python3 train_model -u</code>  -  обновление текущей модели: удаление продуктов, которых нет в базе на данный момент; обновление значений/изображений продуктов; добавление новых, в том числе добавление дополнительных изображений продуктов из директории. Все изображения, которые необходимо поместить в модель, должны находиться по пути: cosmetic_recognition/products. 
   <br><br>
 <h4>В директории client:</h4> <br>
-<code>docker build -t cosmetic_client .</code> <br><br>
+<code>docker build -t cosmetic_client .</code> <br>
 Создается образ cosmetic_client. С помощью данного образа можно отправлять изображения на cosmetic_recognition. Изображение можно загружать с помощью внешней ссылки или загрузить в папку client/data. Запуск контейнера командой: <br>
-<code>docker run -it -v путь_до_папки_проекта_cosmetic_recognition/client/data:/data --network=cosmetic_recognition_default cosmetic_client</code> <br><br>
+<code>docker run -it -v путь_до_папки_проекта_cosmetic_recognition/client/data:/data --network=cosmetic_recognition_default cosmetic_client</code> <br>
 Далее в запустившемся контейнере: <br>
  <code>python3 client.py -i 'ссылка_на_изображение'</code> или <code>python3 client.py -i 'data/название_изображения'</code> 
 <br><br>
