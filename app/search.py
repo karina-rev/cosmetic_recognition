@@ -1,20 +1,21 @@
 ##!/bin/bash
 import pandas as pd
 import faiss
-import argparse
 import utils
-import requests
-import train_model
 import config
-import os
 import torch
 import time
 import logging
-from text_spotting import TextSpotting
+import text_spotting
 from io import BytesIO
 from PIL import Image
+from concurrent.futures import ThreadPoolExecutor
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+index = faiss.read_index(config.PATH_TO_FAISS_INDEX)
+products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
+text_spotting = text_spotting.TextSpotting().train_network()
 logging.basicConfig(filename=config.PATH_TO_LOG_FILE,
                     format='%(asctime)s [%(levelname)s] - %(message)s',
                     level=logging.INFO)
@@ -26,16 +27,20 @@ def perform_search(image_bytes):
     :param image_bytes: изображение для поиска в байтах
     :return: словарь с данными найденного продукта
     """
-    products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
     image = Image.open(BytesIO(image_bytes)).convert('RGB')
     start = time.time()
 
+    executors_list = []
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        executors_list.append(executor.submit(search_img_in_faiss, image))
+        executors_list.append(executor.submit(text_spotting.search_text, image))
+
+    distance, indices = executors_list[0].result()
+    ocr_keywords = executors_list[1].result()
+
     # ---Поиск с помощью OCR---
     # Получаем слова на изображении и находим количество пересечений со словами каждого продукта из базы
-    text_spotting = TextSpotting().train_network()
-    ocr_keywords = text_spotting.search_text(image)
     products['ocr_weight'] = [len(set(ocr_keywords) & set(p)) for p in products['keywords']]
-
     # Находим процент пересечений для каждого продукта
     # Чем больше процент - тем больше таких же слов у продукта, как и у входного изображения
     # Повышаем общий процент пересечений, умножая на 10.5
@@ -44,7 +49,6 @@ def perform_search(image_bytes):
 
     # ---Поиск с помощью CBIR---
     # Находим расстояния до n_similar (по умолчанию 25) самых похожих изображений из базы и их индексы
-    distance, indices = search_img_in_faiss(image)
     distance_sum = sum(distance[0])
     products['faiss_weight'] = 0
     # Считаем процент от общей суммы расстояний
@@ -92,7 +96,6 @@ def search_img_in_faiss(img, n_similar=25):
     distance - расстояние от вектора данного изображения до похожих
     indices - индексы похожих изображений
     """
-    index = faiss.read_index(config.PATH_TO_FAISS_INDEX)
     input_tensor = utils.transform_torch()(img)
     input_tensor = input_tensor.view(1, *input_tensor.shape)
     with torch.no_grad():

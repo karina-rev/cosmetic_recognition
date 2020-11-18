@@ -1,5 +1,6 @@
 import pyheif
 import config
+import time
 from PIL import Image
 from io import BytesIO
 from torchvision import models, transforms
@@ -11,11 +12,11 @@ retry_strategy = Retry(
     status_forcelist=[429, 500, 502, 503, 504],
     method_whitelist=["HEAD", "GET", "OPTIONS"])
 adapter = HTTPAdapter(max_retries=retry_strategy)
+MODEL = models.resnet101(pretrained=True)
 
 
 def pooling_output(x):
-    model = models.resnet101(pretrained=True)
-    for layer_name, layer in model._modules.items():
+    for layer_name, layer in MODEL._modules.items():
         x = layer(x)
         if layer_name == 'avgpool':
             break

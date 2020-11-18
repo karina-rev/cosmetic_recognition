@@ -57,6 +57,12 @@ def create_models():
     # создание и сохранение датафрейма с продуктами
     make_products_dataframe()
     products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
+    logging.info(products.shape[0])
+
+    # добавление в датафрейм с продуктами найденных слов по каждому изображению
+    products = train_products_keywords(products)
+    logging.info('Запись датафрейма в файл')
+    products.to_pickle(config.PATH_TO_PRODUCT_DATASET)
 
     # создание faiss индекса
     descriptors = train_faiss_descriptors(products)
@@ -65,11 +71,6 @@ def create_models():
     index = faiss.IndexIDMap2(index)
     index.add_with_ids(np.vstack(descriptors), np.hstack([i for i in range(products.shape[0])]))
     faiss.write_index(index, config.PATH_TO_FAISS_INDEX)
-
-    # добавление в датафрейм с продуктами найденных слов по каждому изображению
-    products = train_products_keywords(products)
-    logging.info('Запись датафрейма в файл')
-    products.to_pickle(config.PATH_TO_PRODUCT_DATASET)
 
     assert index.ntotal == products.shape[0]
     logging.info(f'Модель создана и обучена. '
@@ -151,14 +152,14 @@ def add_additional_images(products):
         # читаем все изображения текущего продукта
         pictures = glob.glob(product_path + '/*')
         for picture_full_path in pictures:
-            count_all_images += 1
             picture_name = picture_full_path.replace(config.PATH_TO_PRODUCT_FOLDER, '')
             # если такое изображение уже есть в датафрейме, читаем следующее
             if picture_name in products['picture'].values:
                 continue
             # открываем изображение в зависимости от его расширения
+            count_all_images += 1
             try:
-                utils.open_local_image(picture_full_path)
+                utils.open_local_image(picture_name)
                 # дублируем строку с найденным продуктом в датасете по текущему артикулу
                 # меняем только путь к изображению
                 curr_index += 1

@@ -52,8 +52,6 @@ class TextSpotting():
             self.train_network()
 
         image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-        scale_x = self.w / image.shape[1]
-        scale_y = self.h / image.shape[0]
         input_image = cv2.resize(image, (self.w, self.h))
 
         input_image_size = input_image.shape[:2]
@@ -70,26 +68,12 @@ class TextSpotting():
         outputs = self.mask_rcnn_exec_net.infer({'im_data': input_image, 'im_info': input_image_info})
 
         # Parse detection results of the current request
-        boxes = outputs['boxes']
         scores = outputs['scores']
-        classes = outputs['classes'].astype(np.uint32)
-        raw_masks = outputs['raw_masks']
         text_features = outputs['text_features']
 
         # Filter out detections with low confidence.
         detections_filter = scores > PROB_THRESHOLD
-        classes = classes[detections_filter]
-        boxes = boxes[detections_filter]
-        raw_masks = raw_masks[detections_filter]
         text_features = text_features[detections_filter]
-
-        boxes[:, 0::2] /= scale_x
-        boxes[:, 1::2] /= scale_y
-        masks = []
-        for box, cls, raw_mask in zip(boxes, classes, raw_masks):
-            raw_cls_mask = raw_mask[cls, ...]
-            mask = segm_postprocess(box, raw_cls_mask, image.shape[0], image.shape[1])
-            masks.append(mask)
 
         texts = []
         for feature in text_features:
@@ -114,37 +98,4 @@ class TextSpotting():
                 hidden = decoder_output['hidden']
 
             texts.append(text)
-
         return texts
-
-
-def expand_box(box, scale):
-    w_half = (box[2] - box[0]) * .5
-    h_half = (box[3] - box[1]) * .5
-    x_c = (box[2] + box[0]) * .5
-    y_c = (box[3] + box[1]) * .5
-    w_half *= scale
-    h_half *= scale
-    box_exp = np.zeros(box.shape)
-    box_exp[0] = x_c - w_half
-    box_exp[2] = x_c + w_half
-    box_exp[1] = y_c - h_half
-    box_exp[3] = y_c + h_half
-    return box_exp
-
-
-def segm_postprocess(box, raw_cls_mask, im_h, im_w):
-    # Add zero border to prevent upsampling artifacts on segment borders.
-    raw_cls_mask = np.pad(raw_cls_mask, ((1, 1), (1, 1)), 'constant', constant_values=0)
-    extended_box = expand_box(box, raw_cls_mask.shape[0] / (raw_cls_mask.shape[0] - 2.0)).astype(int)
-    w, h = np.maximum(extended_box[2:] - extended_box[:2] + 1, 1)
-    x0, y0 = np.clip(extended_box[:2], a_min=0, a_max=[im_w, im_h])
-    x1, y1 = np.clip(extended_box[2:] + 1, a_min=0, a_max=[im_w, im_h])
-
-    raw_cls_mask = cv2.resize(raw_cls_mask, (w, h)) > 0.5
-    mask = raw_cls_mask.astype(np.uint8)
-    # Put an object mask in an image mask.
-    im_mask = np.zeros((im_h, im_w), dtype=np.uint8)
-    im_mask[y0:y1, x0:x1] = mask[(y0 - extended_box[1]):(y1 - extended_box[1]),
-                            (x0 - extended_box[0]):(x1 - extended_box[0])]
-    return im_mask
