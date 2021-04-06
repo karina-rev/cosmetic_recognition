@@ -1,5 +1,30 @@
 # cosmetic_recognition
 
+Текущие модели: https://disk.yandex.ru/d/4KFXLA1Eut2_-w <br>
+1. Собрать докер: 
+```bash
+docker-compose build
+``` 
+2. Разархивировать в папку app/output модельки
+3. Запустить докер:
+```bash
+docker-compose up -d
+``` 
+4. Немного подождать, пока загрузится сервер
+5. Загрузить клиента:
+```bash
+docker run -it -v путь_до_папки_проекта_cosmetic_recognition/client/data:/data --network=cosmetic_recognition_default cosmetic_client
+```
+6. В клиентском контейнере:
+```bash
+python3 client.py -i 'ссылка_на_изображение'
+```
+```bash
+python3 client.py -i 'data/название_изображения'
+```
+7. Первые изображения распознаются долго, дальше в среднем 3-4 секунды.
+8. Время распознавания можно посмотреть в логе на сервере: logs/cosmetic_recognition.log
+
 Распознование наименования продукта по изображению с помощью:
 1) Cистемы Content-Based Image Retrieval с использованием предобученной модели ResNet и Faiss индексации
 2) Optical character recognition c использованием библиотеки OpenVINO (предобученная модель text-spotting)
