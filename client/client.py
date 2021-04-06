@@ -9,8 +9,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", type=str, help="path to image to recognize", required=True)
 args = vars(ap.parse_args())
 
-HOST = os.getenv('HOST', 'cosmetic_recognition')
-PORT = os.getenv('PORT', '8080')
+HOST = os.getenv('HOST', 'cosmetic_recognition_server')
+PORT = os.getenv('PORT', '7070')
 
 
 async def get_photo_bytes_by_url():

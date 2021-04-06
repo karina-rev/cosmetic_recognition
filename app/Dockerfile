@@ -1,4 +1,4 @@
-FROM openvino/workbench as workbench
+FROM openvino/workbench:2020.4 as workbench
 USER root
 
 RUN python3 -m pip install --upgrade pip
@@ -37,14 +37,9 @@ WORKDIR /app
 RUN pip install -r requirements.txt
 RUN chmod +x  search.py
 
-RUN curl -OL 'https://github.com/karina-rev/cosmetic_recognition/releases/download/1.0/output.zip' \
-&& unzip output.zip \
-&& rm output.zip
-
-
 VOLUME ["/app/products", "/app/logs", "/app/output"]
-EXPOSE 8080
+EXPOSE 7070
 RUN /bin/bash -c "source /opt/intel/openvino/bin/setupvars.sh"
-CMD ["/bin/bash"]
+CMD ['/bin/bash']
 
 

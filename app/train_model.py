@@ -201,7 +201,8 @@ def train_faiss_descriptors(products):
             torch.cuda.empty_cache()
 
             i += 1
-            if i % 500 == 0:
+            if i % 10 == 0:
+                print(i)
                 logging.info(f'Обработано строк: {i}')
     return descriptors
 
@@ -228,7 +229,8 @@ def train_products_keywords(products):
         row['keywords'] = row['keywords'] + text_spotting_net.search_text(image)
 
         i += 1
-        if i % 500 == 0:
+        if i % 10 == 0:
+            print(i)
             logging.info(f'Обработано строк: {i}')
 
     return products
@@ -438,7 +440,87 @@ def add_products(current_products, products_to_update):
     return products_to_update
 
 
+def add_new_products_from_tsv():
+    new_products = pd.read_csv('app/output/productze.tsv', sep='\t', header=None, names=['id', 'pic', '1', '2'])
+    print(new_products.head())
+
+    products_to_update = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
+    print(products_to_update.iloc[0])
+
+    print(new_products.shape)
+    print(products_to_update.shape)
+
+    http = requests.Session()
+    http.mount("https://", utils.adapter)
+
+    first = 710010
+    last = first + 1000
+
+    while last <= new_products.shape[0]:
+        i = 0
+        idx_to_add_from_xml = []
+        curr_index = products_to_update.index.max()
+        print(f'first: {first}, last: {last}')
+        for index, row in new_products[first:last].iterrows():
+            try:
+                utils.get_image(row['pic'], http)
+                curr_index += 1
+                i += 1
+                idx_to_add_from_xml.append(curr_index)
+                products_to_update.loc[curr_index] = [row['id'], None, None, None, None, row['pic'],
+                                                      None, '', '', None, None, None, None]
+                if i % 100 == 0:
+                    print(i)
+                    # break
+            except Exception as ex:
+                print('Image error')
+                print(row['pic'])
+                continue
+        print(products_to_update.shape)
+        print(len(idx_to_add_from_xml))
+
+        # поиск слов для новых продуктов/изображений
+        print(f'Поиск слов для новых продуктов/изображений [{len(idx_to_add_from_xml)} строк]')
+        try:
+            products_to_update.loc[idx_to_add_from_xml] = train_products_keywords(
+                products_to_update.loc[idx_to_add_from_xml])
+        except Exception as ex:
+            try:
+                products_to_update.loc[idx_to_add_from_xml] = train_products_keywords(
+                    products_to_update.loc[idx_to_add_from_xml])
+            except Exception as ex:
+                products_to_update.loc[idx_to_add_from_xml] = train_products_keywords(
+                    products_to_update.loc[idx_to_add_from_xml])
+
+        print(products_to_update.loc[idx_to_add_from_xml].values)
+
+        # обновляем faiss, обучаем новые дескрипторы
+        print(f'Добавление новых дескрипторов в faiss модель [{len(idx_to_add_from_xml)} строк]')
+        index = faiss.read_index(config.PATH_TO_FAISS_INDEX)
+        descriptors = train_faiss_descriptors(products_to_update.loc[idx_to_add_from_xml])
+        index.add_with_ids(np.vstack(descriptors), np.hstack(idx_to_add_from_xml))
+
+        print(f'Запись')
+        faiss.write_index(index, config.PATH_TO_FAISS_INDEX)
+        products_to_update.to_pickle(config.PATH_TO_PRODUCT_DATASET)
+        assert index.ntotal == products_to_update.shape[0]
+
+        print(f'Модель обновлена и переобучена. '
+              f'Всего {products_to_update["vendor_code"].nunique()} продуктов и {products_to_update.shape[0]} '
+              f'изображений')
+
+        products = pd.read_pickle(config.PATH_TO_PRODUCT_DATASET)
+        print(products.tail().values)
+
+        first = last
+        if first + 1000 > new_products.shape[0]:
+            last = new_products.shape[0]
+        else:
+            last = first + 1000
+
+
 if __name__ == '__main__':
+
     if args['create']:
         try:
             create_models()

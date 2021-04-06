@@ -1,12 +1,27 @@
 version: '3.8'
 services:
-  cosmetic_recognition:
+  cosmetic_recognition_server:
     build: ./app
-    image: cosmetic_recognition
-    container_name: cosmetic_recognition
+    image: cosmetic_recognition_server
+    container_name: cosmetic_recognition_server
     volumes:
       - ./products:/app/products
-    command: /bin/bash -c "source /opt/intel/openvino/bin/setupvars.sh; python3 main.py"
+      - ./app/output:/app/output
+    command:
+      - /bin/bash
+      - -c
+      - |
+        source /opt/intel/openvino/bin/setupvars.sh
+        python3 /app/main.py
     restart: on-failure
     ports:
-      - "8080:8080"
+      - "7070:7070"
+
+  cosmetic_recognition_client:
+    build: ./client
+    image: cosmetic_recognition_client
+    container_name: cosmetic_recognition_client
+    command: /bin/bash
+    depends_on:
+          - cosmetic_recognition_server
+

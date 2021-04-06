@@ -37,15 +37,37 @@ def perform_search(image_bytes):
 
     distance, indices = executors_list[0].result()
     ocr_keywords = executors_list[1].result()
+    ocr_keywords = [word for word in ocr_keywords if len(word) > 1]
 
     # ---Поиск с помощью OCR---
     # Получаем слова на изображении и находим количество пересечений со словами каждого продукта из базы
-    products['ocr_weight'] = [len(set(ocr_keywords) & set(p)) for p in products['keywords']]
+    val = products['keywords'].values
+    set_ocr_keywords = set(ocr_keywords)
+    products['ocr_weight'] = [len(set_ocr_keywords & p) for p in val]
+
     # Находим процент пересечений для каждого продукта
     # Чем больше процент - тем больше таких же слов у продукта, как и у входного изображения
     # Повышаем общий процент пересечений, умножая на 10.5
     total_sum = products['ocr_weight'].sum()
-    products['ocr_weight'] = (products['ocr_weight'] / total_sum) * 10.5
+    val = products['ocr_weight'].values
+    products['ocr_weight'] = [(weight / total_sum) * 1000 if weight > 0 else 0 for weight in val]
+
+    val = products['vendor'].values
+
+    p1 = [len(set_ocr_keywords & p) * 0.5
+          if (len(set_ocr_keywords & p) > 0) and (len(p) == 1)
+          else 0 for p in val]
+
+    p2 = [len(set_ocr_keywords & p) * 0.1
+          if (len(set_ocr_keywords & p) > 0) and (len(p) > 1)
+          else 0 for p in val]
+
+    val = products['model'].values
+    p3 = [len(set_ocr_keywords & p) * 0.1
+          if len(set_ocr_keywords & p) > 0 else 0 for p in
+          val]
+
+    products['ocr_weight'] = products['ocr_weight'] + p1 + p2 + p3
 
     # ---Поиск с помощью CBIR---
     # Находим расстояния до n_similar (по умолчанию 25) самых похожих изображений из базы и их индексы
@@ -54,7 +76,7 @@ def perform_search(image_bytes):
     # Считаем процент от общей суммы расстояний
     # Вычитаем из единицы, чтобы больший процент соответствовал более похожему изображению
     for idx in range(0, len(distance[0])):
-        products.loc[indices[0][idx], ['faiss_weight']] = 1 - (distance[0][idx] / distance_sum)
+        products.loc[indices[0][idx], ['faiss_weight']] = 0.9 - (distance[0][idx] / distance_sum)
 
     # ---Взвешивание результатов---
     # Вес продукта - среднее между процентом пересечений OCR и процентом расстояния CBIR
@@ -63,9 +85,11 @@ def perform_search(image_bytes):
     # Считаем среднее для продуктов, которые не были найдены с помощью CBIR,
     # но у которых большой процент пересечения слов OCR
     products.loc[(products['faiss_weight'] == 0.0) &
-                 (products['ocr_weight'] >= products[products['ocr_weight'] > 0]['ocr_weight'].mean()),
-                 'result_weight'] = (products[products['faiss_weight'] > 0]['faiss_weight'].mean() +
-                                     products['ocr_weight']) / 2
+                      (products['ocr_weight'] >= products[products['ocr_weight'] > 0][
+                          'ocr_weight'].mean()),
+                      'result_weight'] = (products[products['faiss_weight'] > 0]['faiss_weight'].mean() +
+                                          products['ocr_weight']) / 2
+
     # Возвращаем url продукта, у которого получился самый большой вес
     result_product = products.sort_values(by='result_weight', ascending=False).iloc[0]
 
@@ -74,16 +98,7 @@ def perform_search(image_bytes):
 
     return {
         'url': result_product['url'],
-        'price': result_product['price'],
-        'oldprice': result_product['oldprice'],
-        'currencyId': result_product['currencyId'],
-        'categoryId': result_product['categoryId'],
-        'picture': result_product['picture'],
-        'typePrefix': result_product['typePrefix'],
-        'model': result_product['model'],
-        'vendor': result_product['vendor'],
-        'barcode': result_product['barcode'],
-        'description': result_product['description']
+        'picture': result_product['picture']
     }
 
 
